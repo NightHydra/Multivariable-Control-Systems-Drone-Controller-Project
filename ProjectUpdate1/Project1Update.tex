@@ -91,7 +91,7 @@
         &= \begin{bmatrix} \sin(\theta) \\ 0 \\ \cos(\theta) \end{bmatrix} \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m}
     \end{align}
 
-    Afterward, gravity accounts for a downward acceleration of $-9.81 m/s^2$ giving us the final real-world
+    Afterwards, gravity accounts for a downward acceleration of $-9.81 m/s^2$ giving us the final real-world
     frame definition of the accelerations.
 
     \begin{align}
@@ -134,7 +134,7 @@
         0 & 0 \\ \rho_5 & \rho_6 \end{bmatrix} \begin{bmatrix} \omega_1 & \omega_2 \end{bmatrix}
     \end{align}
 
-    where $\Rho_k$ and $\phi_j$ are linearization constants.
+    where $\rho_k$ and $\Phi_j$ are linearization constants.
 
     These variables are filled in once an operating point has been determined.
 
@@ -223,7 +223,204 @@
     With these restrictions, the drone can be treated as a SISO control system which can be modeled.
     In this report, a SISO controller will be designed for this subsystem.
 
+    \subsection{SISO Simplification and Description}\label{subsec:siso-simplification}
+
+    For this subsystem, we will use the thrust equations derived earlier.
+    Since we do not need to worry about the drone's rotation, we can simplify our state
+    space in the following way.
+    We can base this off of the following equations.
+
+    \begin{align}
+        a_z = \frac{2k_f\omega_i^2}{m} - 9.81
+    \end{align}
+
+    Again, we are assuming the value of $k_f$ is $10^{-5}$ and $m=0.5kg$.
+    This makes the acceleration of the drone the following.
+
+    \begin{align}
+        a_z = 4 \times 10^{-5} \omega_i^2 - 9.81
+    \end{align}
+
+    As we can see, the equation we arrive at is nonlinear.
+    This non-linearity will pose a problem for any controller we apply to this system as concepts such
+    as bode plots and state spaces depend on the principle of linearity.
+    Thus, we must linearize the system around an operating point.
+    Due to the constant acceleration caused by gravity, we will want to linearize around
+    an equilibrium which is the propeller speed for which the drone experiences 0 acceleration.
+    We find this propeller speed through the following calculations,
+
+    \begin{align}
+        \sqrt{\frac{9.81}{4\times 10^{-5}}} \approx 495 rad/s
+    \end{align}
+
+    Linearizing around this operating point we arrive at the linearized equation.
+
+    \begin{align}
+        a_z &= \frac{d}{dt}a_z|_{\omega = 495}\omega + (4 \times 10^{-5}495^2 - 9.81)\\
+        &= 0.0792\omega + 9.801 - 9.81\\
+        &\approx 0.08\omega
+    \end{align}
+
+    For the SISO control design, we will assume no noise to start.
+    This allows the state space to be described as follows.
+
+    \begin{align}
+        \begin{bmatrix} \dot{v} \\ \dot{z} \end{bmatrix} &= \begin{bmatrix} 0 & 0 \\ 1 & 0 \end{bmatrix}
+        + \begin{bmatrix} 0.08 \\ 0 \end{bmatrix} u\\
+        y &= \begin{bmatrix} 0 & 1 \end{bmatrix} \begin{bmatrix} v \\ z \end{bmatrix}
+    \end{align}
+
+    Additionally, we can find the $z-posiition$ in terms of transfer function.
+    As we can see by the state-space, the system has two poles which are both at 0 resulting in the following
+    transfer function.
+
+    \begin{align}
+        Y(s) &= \frac{0.08}{s^2}U(s)\\
+        H(s) &= \frac{0.08}{s^2}
+    \end{align}
+
     \section{Proposed Controller Designs for SISO Subsystem}\label{sec:proposed-siso-controllers}
+
+    Three different controllers were designed for this subsystem.
+    These subsystems are just designing a discrete time controller with the desired poles of G(s),
+    using full state feedback, and using a PID controller.
+    As shown in~\ref{sec:siso_results} full state feedback shows the most promising results of the designed controller.
+
+    \subsection{Designing a G(s)}
+
+    For this subsystem, we design a controller $G(s)$ which is fed a error and gives a control signal
+    to the propellers whose transfer function is $H(s)$.
+    This allows us to say that the output $Y(s)$ can be represented as the following.
+
+    \begin{align}
+        Y(s) &= G(s)H(s)E(s)\\
+        E(s) &= r-Y(S)\\
+        E(s) &= r-\frac{0.056G(s)}{s^2}E(s)\\
+        r &= E(s)\left(\frac{0.08G(s)}{s^2}+1\right)\\
+        E(s) &= \frac{rs^2}{0.08G(s)+s^2}
+    \end{align}
+
+    This allows us to derive $Y(s)$ as the following,
+
+    \begin{align}
+        Y(s) &= G(s)H(s)(r-Y(s))\\
+        &= \frac{G(s)H(s)r}{1+G(s)H(s)}\\
+        Y(s) &= \frac{0.08G(s)r}{s^2+0.08G(s)}
+    \end{align}
+
+    Suppose we let $G(s)$ be a second order control law with a single zero and
+    four poles.
+    In this case we say,
+
+    \begin{align}
+        G(s) &= \frac{z_1+s}{a_{1}s^3+a_{2}s^2+a_{3}s+a_4}\\
+    \end{align}
+
+    This gives us the transfer function for the error as,
+
+    \begin{align}
+        E(s) &= \frac{r(a_{1}s^5+a_{2}s^4+a_{3}s^3 +a_{4}s^2)}{0.08s+ 0.08z_1 + a_{1}s^5 + a_{2}s^4 + a_{3}s^3 + a_{4}s^2}
+    \end{align}
+
+    For this feedback, lets try placing the poles for the closed loop error at the following
+
+    \[-0.1 \pm 0.001j, -0.2 \pm 0.001j, -0.25\]
+
+    Using this controller also allows us to say that $Y(s)$ is the following,
+
+    \begin{align}
+        Y(s) &= \frac{0.08rs + 0.08rz_1}{a_1s^5 + a_2s^4 + a_3s^3 + a_4s^2 + 0.056s + 0.056z_1}
+    \end{align}
+
+    The open loop transfer function can also be stated as the following,
+
+    \begin{align}
+        G(s)H(s) &= \frac{z_1+s}{a_1s^5 + a_2s^4 + a_3s^3 + a_4s^2}
+    \end{align}
+
+    \subsection{Full State Feedback Controller Design}\label{subsec:fsf_controller_design}
+
+    Another possible controller for this SISO system is a full state feedback controller.
+    This solution involves feeding back the states of the observed system back into the controller.
+    In this case we say that our input $u$ is the following,
+
+    \begin{align}
+        u = -KB
+    \end{align}
+
+    However, we only have a sensor in this design to tell the position of the drone, not velocity.
+    If we could design a full state feedback control loop using just the position then no observer would
+    be needed.
+    This would require our gain vector $K$ to be the form $K = \begin{bmatrix} 0 & k \end{bmatrix}$.
+    Lets see if the poles can be placed using just this controller though.
+    We know that the poles are the on the eigenvalues of the matrix $A-BK$.
+    Using this we find this matrix and its eigenvalues.
+
+    \begin{align}
+        (A-BK) = \begin{bmatrix} 0 & -0.08k \\ 1 & 0 \end{bmatrix}
+    \end{align}
+
+    This gives the system eigenvalues of $\pm \sqrt{0.08k}$.
+    This outcome is not desired since for $k > 0$ at least one pole
+    will be greater than 0.
+    For $k<0$ both poles will be fully imaginary with zero real components.
+    This result is also undesirable.
+    This shows we must use both states in our feedback loop.
+    Using both states requires and observer whose design will be shown below.
+
+    First, assume we do have access to both states.
+    This allows our gain vector $K$ to be in the form $K = \begin{bmatrix} k_1 & k_2 \end{bmatrix}$\\
+    Using this gain vector allows us to place the poles of our closed loop system at the eigenvalues the
+    matrix $A-BK$ again as shown below.
+
+    \begin{align}
+        (A-BK) = \begin{bmatrix} -0.08k_1 & -0.08k_2 \\ 1 & 0 \end{bmatrix}
+    \end{align}
+
+    This gives the characteristic polynomial
+
+    \begin{align}
+        \chi{\lambda} = \lambda^2 + 0.08k_1 \lambda + 0.056k_2
+    \end{align}
+
+    This polynomial is far better as it allows us to place the closed loop poles
+    almost anywhere.
+    However, this also requires us to design an observer for the system
+    using the state space which was also done.
+    When designing a system it is known that the poles for the observer and controller can be placed separately
+    so that the observer design does not revolve around the controller design.
+    Thus, we can design our observer using the following equation.
+
+    \begin{align}
+        \hat{x_{k+1}} &= A\hat{x_k} + L(y - C\hat{y_k}) + Bu\\
+        \hat{y_k} &= C\hat{x} + Du
+    \end{align}
+
+    where $L = \begin{bmatrix} l_1 \\ l_2 \end{bmatrix}$.
+
+    It is also known that the poles of the closed loop observer are equivalent to the eigenvalues of $A-LC$.
+    We show this matrix below.
+
+    \begin{align}
+        A-LC = \begin{bmatrix} 0 & -l_1 \\ 1 & -l_2 \end{bmatrix}
+    \end{align}
+
+    This gives the characteristic poly
+
+    \begin{align}
+        \lambda^2 + l_2\lambda + l_1
+    \end{align}
+
+    For the feedback controller, we can just use the direct output of the observer.
+
+    Using this observer and controller design the poles and zeros of the closed loop system
+    can be placed as desired.
+
+    \subsection{PID Controller Design}\label{subsec:pid_design_description}
+
+    The final controller to test on the simplified SISO system was a PID controller.
+    The PID controller uses gains $k_p$, $k_i$ and $k_d$ to adjust the proportional, integral, and derivative gains respectively.
+    This controller allows the gains to be tuned to see if some combination produces and optimal output.
 
     \section{Results}\label{sec:siso_results}
 
