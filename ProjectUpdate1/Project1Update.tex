@@ -1,0 +1,235 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage[margin=2cm]{geometry}
+\usepackage{gensymb}
+
+
+
+\title{Multi-Variable Control Systems Project Update 1}
+\author{Alek Krupka}
+\date{February 2026}
+
+\begin{document}
+    \maketitle
+
+    \section{Introduction}\label{sec:introduction}
+
+    This project update will mainly be focused on discussing the project
+    description along with a modification that will allow the project to be used
+    for a SISO controller design.
+    Additionally, a SISO controller is proposed to control this modified system.
+
+    \section{Project Motivation}\label{sec:motivation}
+
+    The goal for the semester-long project is to develop a control system
+    for a 2-propeller drone.
+    This is a simplification made to the standard four propeller drone which
+    reduces the degrees of freedom experienced by the input.
+    While this simplication confines the drone to a single plane (the plane formed
+    by the z-axis and the axis along which the drone arms form), it still allows
+    for the design of a multi-variable control system.
+    This project was selected to gain experience with controlling a slow-reacting
+    and non-linear system.
+    The details of the system's non-linearity will be discussed later in \ref{subsec:system-description}.
+    Even with only having two propellers, the system still maintains these properties, meaning
+    the simplification to a two-propeller drone does not negate this motivation.
+
+    \section{Project Definition}\label{sec:description}
+
+    \subsection{System Description}\label{subsec:system-description}
+
+    To begin, we define a drone with just two propellers.
+    This allows us to ignore pitch (rotation around the x-axis) and yaw (rotation around the z-axis).
+    However, this restricts the drone to just rotating around its y-axis and moving along the x and z-axis.
+    For this project, that will be sufficient though.
+    Below, we derive the equations for the output based on the input (speed of propeller for each drone).
+
+    We treat this drone as a rigid body with two motors along the x-axis with distance $r$ away from the center of mass.
+    Each motor $i$ produces a linear acceleration in the $z$ direction from the drone's perspective.
+    This thrust force is equivalent to the following.
+
+    \begin{align}
+        F_{thrust} = k_f\omega^2
+    \end{align}
+
+    where $k_f$ is the thrust coefficient for all propellers.\\
+
+    Analyzing the impact on the body frame, we see that the acceleration from the body
+    frame is the following.
+
+    \begin{align}
+        a_{body} = \begin{bmatrix} 0 \\ 0 \\ \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m} \end{bmatrix}
+    \end{align}
+
+    Now we must calculate the torque applied to the drone.
+    To calculate the angular acceleration due to the thrusts from each propeller,
+    we need to calculate the moment of inertia for the entire drone.
+    For this section, we will solve this symbolically and will list its assumed value in section~\ref{subsec:model-uncertainty}.
+    For roll, we say that the acceleration around the y-axis is the following.
+
+    \begin{align}
+        \alpha_y = \frac{l*k_f(\omega_1^2 - \omega_2^2)}{I}
+    \end{align}
+
+    To get the real-world directional accelerations though, we need to translate
+    the body-frame accelerations into the real-world coordinate system.
+    This is done using the rotation matrix listed below,
+
+    \begin{align}
+        R_y(\theta) = \begin{bmatrix} \cos(\theta) & 0 & \sin(\theta) \\ 0 & 1 & 0 \\
+            -sin(\theta) & 0 & \cos(\theta) \end{bmatrix}
+    \end{align}
+
+    Multiplying this rotation matrix by the directional accelerations produces the real-world
+    acceleration value.
+
+    This gives us the acceleration space definition shown below.
+
+    \begin{align}
+        \begin{bmatrix} a_x \\ a_y \\ a_z \end{bmatrix} &= R_y(\theta) a_{z, body}\\
+        &= \begin{bmatrix} \sin(\theta) \\ 0 \\ \cos(\theta) \end{bmatrix} \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m}
+    \end{align}
+
+    Afterward, gravity accounts for a downward acceleration of $-9.81 m/s^2$ giving us the final real-world
+    frame definition of the accelerations.
+
+    \begin{align}
+        a_x = \sin(\theta) \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m}\\
+        a_z = \cos(\theta) \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m} - 9.81
+    \end{align}
+
+    Using these equations, we are able to generate a space with six states.
+    These states are the directional positions along with rotation and each
+    of their first derivatives.
+    The equations for each state are below.
+
+    \begin{align}
+        \dot{x} = v_x\\
+        \dot{v_x} = a_x = \sin(\theta) \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m}\\
+        \dot{z} = v_z\\
+        \dot{v_z} = a_z = \cos(\theta) \frac{\sum_{k=0}^1(k_f\omega_i^2)}{m} - 9.81\\
+        \dot{\theta} = \omega_y\\
+        \dot{\omega_y} = \alpha_y = \frac{l*k_f(\omega_1^2 - \omega_2^2)}{I}
+    \end{align}
+
+    However, this system is nonlinear due to the acceleration being proportional to the squared motor speed.
+    This linearization will be covered later due to being able to linearize differently depending on the operating
+    point selected at the time.
+    The final state space will look something like this though.
+
+    Start by defining the state space $x$ as follows,
+
+    \begin{align}
+        x = \begin{bmatrix} x, v_x, z, v_z, \theta, \omega_y \end{bmatrix}^T\\
+    \end{align}
+
+    Thus, our state space will look something like the following.
+
+    \begin{align}
+        \dot{x} = \begin{bmatrix} 0 & 1 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 & \Phi_1 & 0 \\
+        0 & 0 & 0 & 1 & 0 & 0 \\ 0 & 0 & 0 & 0 & \Phi_2 & 0 \\
+        0 & 0 & 0 & 0 & 0 & 1 \\ 0 & 0 & 0 & 0 & 0 & 0 \end{bmatrix} x +
+        \begin{bmatrix} 0 & 0 \\ \rho_1 & \rho_2 \\ 0 & 0 \\ \rho_3 & \rho_4 \\
+        0 & 0 \\ \rho_5 & \rho_6 \end{bmatrix} \begin{bmatrix} \omega_1 & \omega_2 \end{bmatrix}
+    \end{align}
+
+    where $\Rho_k$ and $\phi_j$ are linearization constants.
+
+    These variables are filled in once an operating point has been determined.
+
+    \subsection{Model Uncertainty}\label{subsec:model-uncertainty}
+
+    The main uncertainty in the model comes mainly from the moment of inertia
+    along with the value of the thurst coefficient $k_f$.
+    There is additional uncertainty with the mass of the drone.
+    While the mass can be measured, there will be some error and the mass will not always be the same
+
+    For the thrust coefficient a reasonable value we will be assuming is
+
+    \begin{align}
+        k_f = 10^{-5} \pm 5%
+    \end{align}
+
+    For this project, we will be assuming a mass of
+
+    \begin{align}
+        0.5 \pm 0.1 kg
+    \end{align}
+
+    We will assume the moment of inertia for this two-propeller drone is a rod.
+    This is because the two-propeller drone is just a rod with motors on the end
+    While there is slight weighting issues we will account for this in the model uncertainty.
+    The moment of intertia for the rod is
+
+    \begin{align}
+        I_{rod} = \frac{4}{3}ml^2
+    \end{align}
+
+    For this project, assume each motor is roughly $10^{-2}m$ away from the center.
+    Using these measurements, we get a moment of
+
+    \begin{align}
+        I_{rod} \approx \frac{2}{3} \times 10^{-4}
+    \end{align}
+
+    This moment is assumed to have an error of around $10^{-4}$ when moment error and
+    previously defined mass errors are taken into consideration.
+
+    \subsection{Exogenous Input}\label{subsec:exogenous-input}
+
+    Characteristics of exogenous input to the system include wind and measurement noise from the GPS.\\
+    \\
+    For the GPS, real-world sensors typically do not measure to more than 1.5m accuracy.
+    In this project, we will assume that the noise coming from every measurement is uniformly distributed
+    and that all RVs are i.i.d.\\
+    \\
+    Wind noise in the system can be simplified to cause acceleration of the drone in a random direction.
+    While in the real-world wind patterns can be predicted and are not random, for this project we will assume that wind
+    pushes the drone in a random direction every sample.
+    The acceleration in each direction is normally and identically distributed with a variance of $1m/s^2$.
+    \\
+    For the final SISO system, the voltage to motor speed will not be known and a separate control loop will need to be used
+    for keeping the motor at the correct speed.
+
+    \subsection{Control Objective}\label{subsec:control-objective}
+`   \\
+    The objective for developed controller will be to have the drone go from an initial position $p_i$ to
+    a final position $p_f$ while keeping the following constraints in mind.\\
+    \begin{itemize}
+        \item Overshoot: The controllers should not overshoot the magnitude of the final position by
+            greater than $2\%$ of the destination.
+            For example, if going to a final position of $(x = 1000, z = 1000)$
+            going from point $(x=0, z=0)$, let $X_t$ be the amount it goes past 1000 on the $x-axis$ and
+            $Z_t$ be the amount it goes past $1000$ on the z-axis at time $t$.
+            In this case, at no time $t$ should $\sqrt{X_t^2 + Z_t^2}$ be greater than $\sqrt{1000^2}$.
+        \item Steady state error: The steady state error for the $z$ position should be no greater than $0.1\%$ of the
+            z-setpoint.
+            Meanwhile, the steady state error for the $x$ position should be at most $2m$ from the target.
+        \item Steady State Noise: The noise should be at most $0.25\%$ on the z-axis and at most $4m$ from the target
+            on the x-axis.
+        \item Phase Margin: Any controller for this system should have at least $45 \degree$ of phase margin.
+        \item Max rotation: The drone should not rotate by more than $30 \degree$ in either direction at any point in it's flight.
+        \item Max velocity: $||v_z + v_x||$ will be limited to $9m/s \approx 20 mph$ in the final design.
+    \end{itemize}
+
+    These are all control objectives for the final design of the final controller.
+
+    \section{SISO Subsystem Description for Project}\label{sec:siso-description}
+
+    The Single-Input-Single-Output modification can be made to the drone.
+    Assume that both propellers spin at exactly the same speed.
+    Now, the only output is the z-position measurement and the only input is the desired propeller speed.
+    With these restrictions, the drone can be treated as a SISO control system which can be modeled.
+    In this report, a SISO controller will be designed for this subsystem.
+
+    \section{Proposed Controller Designs for SISO Subsystem}\label{sec:proposed-siso-controllers}
+
+    \section{Results}\label{sec:siso_results}
+
+
+
+
+
+
+\end{document}
