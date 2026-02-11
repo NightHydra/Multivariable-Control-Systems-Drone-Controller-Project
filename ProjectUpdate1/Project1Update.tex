@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage[margin=2cm]{geometry}
 \usepackage{gensymb}
+\usepackage{float}
 
 
 
@@ -31,7 +32,7 @@
     for the design of a multi-variable control system.
     This project was selected to gain experience with controlling a slow-reacting
     and non-linear system.
-    The details of the system's non-linearity will be discussed later in \ref{subsec:system-description}.
+    The details of the system's non-linearity will be discussed later in~\ref{subsec:system-description}.
     Even with only having two propellers, the system still maintains these properties, meaning
     the simplification to a two-propeller drone does not negate this motivation.
 
@@ -423,6 +424,214 @@
     This controller allows the gains to be tuned to see if some combination produces and optimal output.
 
     \section{Results}\label{sec:siso_results}
+
+    \subsection{Plant Design Results}\label{subsec:plant_design_results}
+
+    The nonlinear plant was designed in MATLAB using the equations.
+    Since these equations are non-linear it is easiest to just write the code for the plant then test a discrete time controller on the linearized model.
+    Below, Figures~\ref{fig:dropping_drone_model} and~\ref{fig:dropping_drone_model_velocity} show the position and velocity of the drone respectively over time when no input is given.
+    This is a easy condition to check since the velocity should decrease linearly over time while the position decreases as the integral of the velocty.
+
+    \begin{figure}[h]
+        \centering
+        \includegraphics{../SISO_Design_Plots/Dropping_Drone_Model}
+        \caption{Drone Plant Model - Position Over Time}
+        \label{fig:dropping_drone_model}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/Dropping_Drone_Model_Velocity}
+        \caption{Drone Plant Model - Velocity Over Time}
+        \label{fig:dropping_drone_model_velocity}
+    \end{figure}
+
+    As we can see by these tests, the model clearly works as expected and will be good to use for testing our controllers.
+
+    \subsection{Designing G(s) Results}\label{subsec:gs_design_results}
+
+    We designed a controller $G(s)$ as specified and used it for our controller.
+    The root locus for this controller is shown below in~\ref{fig:designedgsrlocus}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/DesignedGsRlocus}
+        \caption{Designed G(s) Controller Root Locus}
+        \label{fig:designedgsrlocus}
+    \end{figure}
+
+    As we can see by the root locus, we would need a very high gain in order for the system to go unstable.
+    This is a desired characteristic in the developed controller.
+    Next, we investigate the bode plot of the closed loop controller and analyze the phase margin of the closed loop system.
+    The bode plot is shown below in~\ref{fig:designedgsbodeplot}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/DesignedGsBodePlot}
+        \caption{Designed G(s) Controller Bode Plot}
+        \label{fig:designedgsbodeplot}
+    \end{figure}
+
+    As seen by the bode plot for the closed loop controller, we have about $30\degree$ of phase margin.
+    While this is less than desired, it is still enough so that the controller should not go unstable.
+    However, as we will see in the results, this controller does not work so well.
+    The plots of velocity, position, and input of the system when using the controller are shown below in Figures,~\ref{fig:designedgspositionresults},~\ref{fig:designedgsvelocityresults},~\ref{fig:designedgsaccelerationresults}.
+
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/DesignedGsPositionResults}
+        \caption{Designed G(s) Results - Position Over Time}
+        \label{fig:designedgspositionresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/DesignedGsVelocityResults}
+        \caption{Designed G(s) Results - Velocity Over Time}
+        \label{fig:designedgsvelocityresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/DesignedGsAccelerationResults}
+        \caption{Designed G(s) Results - Input Over Time}
+        \label{fig:designedgsaccelerationresults}
+    \end{figure}
+
+    As seen by the results above, this controller does not really work well for this system.
+    The drone was set to go to a position of 900m, and the controller did not perform well at all in this task.
+    Additionally, if I move the poles more negative, it results in overshoot of the controller which is undesirable.
+    This is all desipte having proper gain and phase margin designs meaning these results are liekly due to nonlinearities within the system.
+    One other problem is the massive spike in input at the start which should be handled in the future even if the
+    controller worked better.
+
+    \subsection{Full State Feedback Results}\label{subsec:fsf_results}
+
+    The next design tested in my work done on the controller was a full state feedback controller design.
+    This design has the benefit of not only using position as a state to control with, but also velocity.
+    As discussed previously, this required the use of an observer to estimate the velcoity which is unable to be measured.
+    However, as we will not later, this observer performed extremely well in tracking the systems position and velocity.
+    We first though will analyze the bode plot of the final close loop state space using full state feedback.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/FullStateFBKBodePlot}
+        \caption{Full State Feedback Bode Plot}
+        \label{fig:fullstatefbkbodeplot}
+    \end{figure}
+
+    As seen by the bode plot, our system incorporates robust design and has plenty of phase margin (roughly $80 \degree$).
+    This is a desirable characteristic to have for our closed loop controller.
+    Of all controller designs for this SISO system, this controller has the best frequency response.
+
+    Next, we show the results of the controller when using this controller in
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/FullStateFBKPositionResults}
+        \caption{Full State Feedback Controller Position over Time}
+        \label{fig:fullstatefbkpositionresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics{../SISO_Design_Plots/FullStateFBKVelocityResults}
+        \caption{Full State Feedback Controller Velocity Over Time}
+        \label{fig:fullstatefbkvelocityresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/FullStateFBKInputResults}
+        \caption{Full State Feedback Controller Input Over Time}
+        \label{fig:fullstatefbkinputresults}
+    \end{figure}
+
+    As seen by these results, this controller took the drone from a position of 400m to 1000m with roughly 20m of overshoot (well under the 2\% spec stated earlier).
+    Again, the issue with this controller is that the input spikes at the start,
+    Additionally, the controller does not meet the velocity limiting spec stated at the start of the report.
+    However, a design to handle that specification will be designed later in the semester.
+
+    The greatest success coming from this controller design was the developed observer though.
+    As seen in Figure~\ref{fig:fullstatefbkobserverresults}, the observed position and velocity match the actual position and velocities extremely well.
+    Given the system's nonlinearities, this observer works extremely well.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/FullStateFBKObserverResults}
+        \caption{Full State Feedback Observer Results}
+        \label{fig:fullstatefbkobserverresults}
+    \end{figure}
+
+    \subsection{PID Controller Design Results}\label{subsec:pid_controller_results}
+
+    Again, we want to analyze the frequency response and robustness of the system.
+    This is again done by finding the root locus of the open loop controller and the
+    bode plot of the closed loop feedback controller.
+    These results are shown below in Figures~\ref{fig:pidrlocus} and~\ref{fig:pidbodeplot} respectively.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/PIDRlocus}
+        \caption{PID Root Locus Results}
+        \label{fig:pidrlocus}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/PIDBodePlot}
+        \caption{PID Bode Plot Results}
+        \label{fig:pidbodeplot}
+    \end{figure}
+
+    As seen by the root locus and bode plots using just a PID controller does not provide for a stable system
+    When we look at the open loop transfer function though this is obvious.
+    The transfer function for the open loop found through MATLAB is the following.
+
+    \begin{align}
+      G(s)H(s) = \frac{510s^2 + 10005s + 5000}{s^4 + 1000s^3}
+    \end{align}
+
+    Unfortunately, the pid controller does not provide enough poles and zeros make some of the poles
+    in the denominator nonzero.
+    Having these three, unmovable poles in the denominator will prevent this controller from working.
+
+    As we can see below by the results of this controller on our drone, the PID controller performs worst in this scenario.
+    This can be seen in Figures,~\ref{fig:pidpositionresults},~\ref{fig:pid_velocityresults},~\ref{fig:pidinputresults}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/PIDPositionResults}
+        \caption{PID Controller Position Over Time}
+        \label{fig:pidpositionresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/PID_VelocityResults}
+        \caption{PID Controller Velocity Over Time}
+        \label{fig:pid_velocityresults}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[keepaspectratio]{../SISO_Design_Plots/PIDInputResults}
+        \caption{PID Input Results Over Time}
+        \label{fig:pidinputresults}
+    \end{figure}
+
+    \section{Conclusion}\label{sec:conclusion}
+
+    As seen by the controllers developed, the full state feedback controller by far performed the best out of all of them.
+    It may be possible to design a better G(s) function to make as our controller with a different form, but using the observer to find velocity most likely made the biggest impact.
+    Whether or not the final design makes use of full state feedback, the developed observer should heavily be considered within the final controller design.
+
+    \section{More Information}\label{sec:info}
+
+    More information about the code and live scripts can be seen at my GitHub Page at the link below.\\
+\\
+    https://github.com/NightHydra/Multivariable-Control-Systems-Drone-Controller-Project
 
 
 
