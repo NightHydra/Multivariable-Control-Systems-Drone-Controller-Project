@@ -1,0 +1,284 @@
+%! Author = Alek
+%! Date = 3/15/2026
+
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage[margin=2cm]{geometry}
+\usepackage{gensymb}
+\usepackage{float}
+
+
+
+
+\title{Multi-Variable Control Systems Project Update 1}
+\author{Alek Krupka}
+\date{February 2026}
+
+\begin{document}
+    \maketitle
+
+    \section{Introduction}\label{sec:introduction}
+
+    For this project update we derive the 4-block representation of the control problem along with showing the MIMO
+    system representation from Assignment 3.
+
+    \section{4-Block Representation}\label{sec:four-block-representation}
+
+    To find the 4 block-representation we need to select our objective to minimize.
+    Our 4-block representation will be done on our SISO system from the first project update.
+
+    We want to select P to minimize the mixed sensitivity function shown below.
+
+    \begin{align}
+        \min_K \left\| \begin{array}{c} W_y T_o  W_n \\ W_u K S_o W_n \\ W_e S_o W_r \end{array} \right\|_{H2}
+    \end{align}
+
+    To do this, we select our four-block-representation to be the following.
+
+    \begin{align}
+        P = \begin{bmatrix}
+                \begin{bmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & W_e W_r \end{bmatrix} &
+                \begin{bmatrix} W_y G \\ W_u \\ -W_e \end{bmatrix} \\
+                \begin{bmatrix} W_n & W_n & W_r \end{bmatrix} & -G
+        \end{bmatrix}
+    \end{align}
+
+    To find $G$ we just use the formula $G = C(sI-A^{-1})B$.
+    The weightings other transfer functions are tuned and can be seen in the MATLAB live
+    script.
+
+    \section{H2 Norm Gain Calculation}\label{sec:H2_Norm}
+
+    To calculate the H2 norm of the calculation we call the MATLAB function "h2syn" which
+    designs the controller $K$ to control the plant.
+
+    See the MATLAB live code for the controller $K$ of for the closed loop systems.
+
+    \section{H-$\infty$ Norm Gain Calculation}\label{sec:Hinf_Norm}
+
+    To calculate the H2 norm of the calculation we call the MATLAB function "h2infsyn" which
+    designs the controller $K$ to control the plant.
+
+    See the MATLAB live code for the controller $K$ of for the closed loop systems.
+
+    \section{MIMO System Design}\label{sec:MIMO_Design}
+
+    For this assignment, we will be doing analysis on the MIMO drone control system.
+    To do this, we will of course need to linearize the system around a specific operating point.
+    We select this point to be equilibrium (where the drone is not rotating or accelerating in any direction).
+    In this case, we want to find the configuration for which $\alpha_y$ and $a_z = 0$ and $a_x = 0$.
+    \\
+    To do this, we can use our work done previously to set this operating point to the following,
+
+    \begin{align}
+        \omega_1 = \omega_2 = 495 rad/s
+    \end{align}
+
+    Under the same model assumptions as before with
+
+    \[ k_f = 10^{-5} \pm 10^{-6}, m = 0.5 \pm 0.1kg, I_{rod} \approx \frac{2}{3} \times 10^{-4}, l = 0.1m \pm 5mm\]
+
+    Using these variables we arrive at the equations,
+
+    \begin{align}
+        a_z &= 2\times 10^{-5} \cos(\theta) (\omega_0^2 + \omega_1^2)-9.81\\
+        a_x &= 2\times 10^{-5} \sin(\theta) (\omega_0^2 + \omega_1^2)\\
+        \dot{v}_z &= a_z\\
+        \dot{v}_x &= a_x\\
+        \dot{z} &= v_z\\
+        \dot{x} &= v_x\\
+        \dot{\omega_y} &= 1.5 \times 10^{-2}(\omega_1^2 - \omega_2^2)\\
+        \dot{\theta} &= \omega_y
+    \end{align}
+
+    Linearizing our squared terms, we get the that.
+
+    \begin{align}
+        \omega_i^2 &= \omega^{\star} + 2\Delta \omega_i\\
+        &= 495^2 + 2 \Delta \omega_i
+    \end{align}
+
+    For $a_z$ the $\omega^{\star}$ cancels out with gravity since we linearize around $\theta = 0$.
+    After cancelling, we see that.
+
+    \begin{align}
+        a_z = 4 \times 10^{-5} (\Delta \omega_1 + \Delta \omega_2)
+    \end{align}
+
+    However, for finding $a_x$ and linearizing $\sin(\theta)$ around 0, we find that.
+
+    \begin{align}
+        a_x &= 2 \times 10^{-5} \theta((\omega_i^{\star} + \Delta \omega_i)^2 + (\omega_i^{\star} + \Delta \omega_i)^2)\\
+    \end{align}
+
+    Keeping only the linear terms (ie.
+    terms that don't have the input squared or input multiplied by $\theta$) we see that.
+
+    \begin{align}
+        a_x &= 4 \times 10^{-5} * 495^2 \theta
+    \end{align}
+
+    Finally, linearizing $\omega_y$ yields the resulting equation.
+
+    \begin{align}
+        \alpha_y &= 0.03(\Delta \omega_1 - \Delta \omega_2)
+    \end{align}
+
+    Using the newly linearized equations, we can represent the state space
+    as shown below.
+
+    \begin{align}
+        \dot{x} &= \begin{bmatrix}
+                       0 & 1 & 0 & 0 & 0 & 0 \\
+                       0 & 0 & 0 & 0 & 9.801 & 0 \\
+                       0 & 0 & 0 & 1 & 0 & 0 \\
+                       0 & 0 & 0 & 0 & 0 & 0 \\
+                       0 & 0 & 0 & 0 & 0 & 1 \\
+                       0 & 0 & 0 & 0 & 0 & 0 \\
+        \end{bmatrix}
+        x + \begin{bmatrix} 0 & 0 \\ 0 & 0 \\ 0 & 0 \\ 4 \times 10^{-5} &
+        4 \times 10^{-5} \\ 0 & 0 \\ 0.03 & -0.03 \end{bmatrix}u\\
+        y &= \begin{bmatrix} 1 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 1 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 & 1 & 0 \end{bmatrix}x
+    \end{align}
+
+    Using this state space representation, we see that.
+
+    \begin{align}
+        A &= \begin{bmatrix}
+                 0 & 1 & 0 & 0 & 0 & 0 \\
+                 0 & 0 & 0 & 0 & 9.801 & 0 \\
+                 0 & 0 & 0 & 1 & 0 & 0 \\
+                 0 & 0 & 0 & 0 & 0 & 0 \\
+                 0 & 0 & 0 & 0 & 0 & 1 \\
+                 0 & 0 & 0 & 0 & 0 & 0 \\
+        \end{bmatrix}\\
+        B &= \begin{bmatrix} 0 & 0 \\ 0 & 0 \\ 0 & 0 \\ 4 \times 10^{-5} &
+        4 \times 10^{-5} \\ 0 & 0 \\ 0.03 & -0.03 \end{bmatrix}\\
+        C &= \begin{bmatrix} 1 & 0 & 0 & 0 & 0 & 0 \\
+            0 & 0 & 1 & 0 & 0 & 0 \\ 0 & 0 & 0 & 0 & 1 & 0 \end{bmatrix}
+    \end{align}
+
+    This gives our output in terms of $y = \begin{bmatrix} x, z, \theta \end{bmatrix}^T$.\\
+    \\
+    Next, to have a stable system, we apply full state feedback to the system.\\
+    While the final system will need an observer as we cannot add sensors for every state, that observer will be designed at a later date.
+    In this case, though, we use MATLAB to define the poles for our system at $-1 \pm 0.1j$ and 4 poles at $-2 \pm 0.1j$.\\
+    \\
+    This will allow us later to find the controllability and observability Gramians of our MIMO system.
+
+    \section{Transmission Poles and Zeros}\label{sec:tzeros_and_poles}
+    Using these matrices, we can find the transmission poles and zeros of this state space.
+    Define the open loop transfer function $G(s)$ as follows.
+
+    \begin{align}
+        G(s) &= C(sI-A)^{-1}B
+    \end{align}
+
+    Now, we need to find the smith form of the state space representation to find the transmission poles and zeros.
+    To do this, we can use MATLAB though.\\
+    \\
+    However, MATLAB will only turn square transfer functions into Smith McMillan form.
+    As a result, our code just defines the system and finds the transmission zeros and poles via the "pole" and "tzero" function.\\
+    \\
+    Looking at the MATLAB script in the appendix, we see that our transmission poles and zeros are the following.\\
+    \\
+    \begin{itemize}
+        \item Poles: $-2 \pm 0.1j$, $-1 \pm 0.1j$ each with geometric multiplicity of 2.
+        This totals 6 poles and are exactly as we designed.
+        \item Transmission Zeros: The system has no transmission zeros as calculated by MATLAB.
+    \end{itemize}
+
+    \section{Controllability and Observability Grammians}\label{sec:controllability_and_observability}
+
+    According to MATLAB (as shown by the attached script), the controllability and observability Gramians are as follows.
+
+    \subsection{Controllability Gramian}\label{subsec:Controllability Gramian}
+
+    As found by MATLAB the controllability Gramian for our system is the following,
+
+    \begin{align}
+        W_c &= 10^{-3}\begin{bmatrix} 2.2 & 0 & -6 & 1.9 & -0.1 & 0 \\ 0 & 0.8 & -1.9 & -2.2 & 0 & -0.2 \\ -6 & -1.9 & 20.9 & 0 & 0.2 & 0.4 \\ 1.9 & -2.2 & 0 & 15.1 & -0.4 & 0.4 \\ -0.1 & 0 & 0.2 & -0.4 & 0 & 0 \\ 0 & -0.2 & 0.4 & 0.4 & 0 & 0.2 \end{bmatrix}
+    \end{align}
+
+    The eigenvalues found by MATLAB are the following.
+
+    The eigenvalues given by the controllability matrix are the following vector.
+
+    \begin{align}
+        10^{-3} \begin{bmatrix} 0 & 0 & 0.1 & 0.5 & 15.7 & 22.8 \end{bmatrix}
+    \end{align}
+
+    As we can see, the smallest eigenvalue generated from our controllability gramian is 0 indicating that we have states that cannot be controlled easily.
+    The largest eigenvalue is 0.22 indicating the system is not very controllable overall.
+    The first two states being mostly uncontrollable make sense since in order to control the x-position
+    we need to control the angle of the drone, which is difficult to do by itself.
+    Even then, at a small angle, the x-position will hardly change.
+
+    \subsection{Observability Gramian}\label{subsec:observability_gramian}
+
+    A found by MATLAB the observability Gramian of our closed loop system is the following.
+
+    \begin{align}
+        W_o &= \begin{bmatrix} 4.6324 & 6.6149 & -0.6419 & -0.2019 & 35.4426 & 6.6023 \\ 6.6149 & 11.0248 & -1.2017 & -0.3781 & 61.6527 & 11.6924 \\
+            -0.6419 & -1.2017 & 0.6238 & 0.1247 & -7.0574 & -1.3722 \\ -0.2019 & -0.3781 & 0.1247 & 0.0312 & -2.2217 & -0.4321 \\
+            35.4426 & 61.6527 & -7.0574 & -2.2217 & 350.6472 & 66.9726 \\
+            6.6023 & 11.6924 & -1.3722 & 0.4321 & 66.9726 & 12.8418
+        \end{bmatrix}
+    \end{align}
+
+    The eigenvalues for the controllability matrix are shown below.
+
+    \begin{align}
+        10^{-3} \begin{bmatrix} 3.4 \\ 9.2 \\ 50 \\ 484.9 \\ 1217.9 \\ 378000 \end{bmatrix}
+    \end{align}
+
+    As we can see, the smallest eigenvalues of our system is roughly $3 \times 10^{-3}$ while our largest
+    is over 300.
+    As a result, the difference between our most observable and least observable states is massive and will prove a challenge for observing the state of the drone.\\
+    \\
+    However, this result does make sense as by our original equations, any small difference is motor speed will result in a large change of angle
+    meaning the state is very observable.
+
+    \section{Balanced Realization}\label{sec:balanced_realization}
+
+    Next we will find the balanced realization of the system.
+    This is the modified state-space where both the controllability Gramians are diagonal matrices that are equivalent.
+    This space can again be found using MATLAB and is shown in the attachment.
+    The balanced realization from $u$ to $y$ is also shown below.
+
+    Let $\hat{A}, \hat{B}, \hat{C}, \hat{D}$, be the balanced state space realization.
+
+    \begin{align}
+        \hat{A} &= \begin{bmatrix} -0.2232 & 0.6697 & 0.01046 & 0.1821 & 7.929 \times 10^{-4} & -8.132 \times 10^{-4} \\
+            -0.6755 & -1.045 & -0.549 & -0.7724 & -0.004782 & 0.003034 \\
+            0.2361 & 1.131 & -0.9512 & 0.7909 & -0.01922 & 0.002614 \\
+            0.2065 & 0.9147 & -1.833 & -3.78 & 0.00832 & -0.001142 \\
+            8.534 \times 10^{-7} & 3.026 \times 10^{-6} & 8.182 \times 10^{-7} & 1.89 \times 10^{-7} & -0.7792 & 0.8828 \\
+            1.097 \times 10^{-6} & 3.857 \times 10^{-6} & -3.897 \times 10^{-6} & -3.816 \times 10^{-6} & -1.7 & -3.221 \end{bmatrix}\\
+        \hat{B} &= \begin{bmatrix} -0.209 & 0.2091 \\ -0.233 & 2.33 \\ 0.1109 & -0.1108 \\ 0.09781 & -0.09774 \\ -0.001158 & -0.001159 \\ -0.001116 & -0.001117 \end{bmatrix}\\
+        \hat{C} &= \begin{bmatrix} -0.07062 & 0.13 & 0.1553 & -0.01723 & 0.001607 & -0.0002296 \\
+            0.2871 & -0.3025 & 0.0206 & -0.1303 & -0.0001449 & 0.0004956 \\
+            -0.0004693 & -0.01493 & 0.005565 & -0.04289 & 0.0002854 & -0.001481 \end{bmatrix}\\
+        \hat{D} &= 0
+    \end{align}
+
+    The henkel singular values for the balanced realization were found using MATLAB and are listed \textbf{below}
+
+    \begin{align}
+        \sigma = \begin{bmatrix} 0.1957 \\ 0.0520 \\ 0.0129 \\ 0.0025 \\ 0 \\ 0 \end{bmatrix}
+    \end{align}
+
+    Again, this makes sense as two of the states are not very controllable.
+    The most controllable and observable state of the transformed state space is the first state
+    as it has the largest eigenvalues.
+    Meanwhile the last state is the least controllable as it has eigenvalues of 0 in the transformed state space.
+
+    \section{Appendix}\label{sec:appendix}
+
+    See the attached MATLAB live script for all calculations in MATLAB.
+
+
+\end{document}
+
