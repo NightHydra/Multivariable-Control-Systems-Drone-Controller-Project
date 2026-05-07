@@ -1,0 +1,258 @@
+%! Author = Alek
+%! Date = 5/3/2026
+
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage[margin=2cm]{geometry}
+\usepackage{gensymb}
+\usepackage{float}
+
+\title{Multi-Variable Control Systems Project-Update 4}
+\author{Alek Krupka}
+\date{May 2026}
+
+\begin{document}
+    \maketitle
+
+    \section{Introduction}\label{sec:introduction}
+
+    In this project update, system identification methods will be used to perform a frequency
+    analysis on data from a system, fit the data to a model, compare the identified model to the
+    real model.
+    Noise is then added to the model, and the system is re-evaluated to see noise's effect on
+    the identified system.
+    Finally, a robust controller will be designed that includes the model identification error.
+
+    \section{Plant Model}\label{sec:plant_model}
+
+    The plant model was implemented using the equations derived in previous project updates
+    but this time through a Simulink model.
+    Using a Simulink model is useful for the following two reasons.
+
+    \begin{enumerate}
+        \item It allows for easily adjusting the parameters of the plant through the plant mask as shown by Figure~\ref{fig:open_loop_plant_measurements}.
+        \item It allows for easily performing a frequency analysis to create a frd model.
+    \end{enumerate}
+
+    First, the modelled plant is shown below by
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{ProjectUpdate4Figures/drone_system_model_simulink}
+        \caption{Drone Simulink Model}
+        \label{fig:drone_system_model_simulink}
+    \end{figure}
+
+    And the open loop system containing the plant is given by Figure~\ref{fig:open_loop_plant_measurements}.
+    As observed, the parameters are given to the right and can easily be adjusted.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{C:/Users/Alek/Documents/MultivariableControlSystemsProject/ProjectUpdate4/ProjectUpdate4Figures/open_loop_plant_measurements}
+        \caption{High Level Simulink Model with Parameter Options}
+        \label{fig:open_loop_plant_measurements}
+    \end{figure}
+
+    A lot of the work can be done through Simulink's GUI which will be useful for the upcoming analysis.
+
+    \section{Finding the Frequency Response Data}\label{sec:freq_resp_data}
+
+    Using the model, a created a chirp signal can now be given to the plant to create
+    data for the system which will then be used for system identification.
+    Simulink has a very convenient way of collecting this data through the "frequency response estimator"
+    app.
+    Performing a frequency analysis using the chirp signal can be done through the following steps in Simulink.
+
+    \begin{enumerate}
+        \item Go to the ESTIMATOR TAB.
+        \item Select "Input Signal" in the top.
+        \item Select "Chirp" from the dropdown
+    \end{enumerate}
+
+    Selecting "Chirp" allows for the frequency response to be estimated using the chirp frequency.
+    Note that other options can be used.
+    However, the chirp input was selected since it covers a wide range and frequencies and since it is
+    a simulation, we don't really care about the long time it takes to analyze using this method.
+
+    The chirp signal additionally allows for the model to use different parameters for the frequency
+    sweep as shown in Figure~\ref{fig:chirp_signal_frequency_sweep_parameters}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[,width=0.5\linewidth]{ProjectUpdate4Figures/chirp_signal_frequency_sweep_parameters}
+        \caption{Frequency Sweep Selected Parameters}
+        \label{fig:chirp_signal_frequency_sweep_parameters}
+    \end{figure}
+
+    As shown, the frequency is swept between 1Hz and 1kHz.
+    While higher frequencies could be analyzed, it is more realistic to keep the sampling time
+    relatively low since the sensors are most likely very slow.
+    In reality, when performing a system identification on a model like this, the frequency
+    would be restricted by sensor speed and interrupt time within the microcontroller.
+
+    Next, Simulink will automatically generate the frd model from the data collected through
+    the chirp input.
+    This frd model can then be exported to the MATLAB workspace where further analysis can be performed.
+    Note that for the MATLAB live script to function, the \text{"chirp\_frd"} variable must be exported to
+    the MATLAB workspace.
+    The frd model is essentially data taken at a variety of frequnecies and shows the channels between
+    inputs and outputs.
+    Once this is done though, the frd model can be converted to a state space using the MATLAB
+    system identification toolbox.
+
+    \section{System Estimation}\label{sec:estimation}
+
+    Once the frd model is located in the MATLAB workspace there are two options to obtain the
+    estimated state space of the system.
+
+    \begin{enumerate}
+        \item Use the built-in MATLAB function ssest.
+        \item Use the built-in MATLAB function n4sid.
+    \end{enumerate}
+
+    Note that the fitfrd function cannot be used here due to the frd being one of a MIMO control system.
+
+    \subsection{Model Order Estimation}\label{subsec:model_order_est}
+
+    To estimate the model order using these functions, the following approach can be used
+    as specified in [1].
+    Run the ssest/n4sid function where the second parameter is an array from 1-n where n is the max
+    order to test.
+    In my case, I tested 200 states.
+    States with small Henkel singular values are eliminated, and the final model order only contains
+    the relatively large singular values.
+    However, MATLAB opens a pop-up window and just recommended a model order to use as shown by
+    Figure~\ref{fig:ssest_model_order_estimation}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{C:/Users/Alek/Documents/MultivariableControlSystemsProject/ProjectUpdate4/ProjectUpdate4Figures/ssest_model_order_estimation}
+        \caption{Model Order Estimation using ssest}
+        \label{fig:ssest_model_order_estimation}
+    \end{figure}
+
+    As shown, the recommended model order is 26 states.
+    One problem though is that this might be too high of an order and will cause
+    too much noise in the model.
+    However, the exact model order will be decided at a later time when developing the controller
+
+    \subsection{The Estimated State Space}\label{subsec:estimated_state_space}
+
+    Now that the command is finally run and the model order is estimated the state space is generated.
+    Note that because the model is of relatively high order, the exact space needs to be observed from the MATLAB
+    live script attached in the appendix.
+
+    \subsection{Comparing the Estimated System to the True System}\label{subsec:est_to_true_system}
+
+    While comparing the estimated to the actual system is almost impossible, the bode plots of both
+    MIMO systems can easily be compared.
+
+    The original system's state space can be generated through Simulink's Linear Analysis tool.
+    The tool linearizes around an operating point and automatically generates the bode plots.
+    Note that the operating point selected is the initial conditions of the plant where there
+    is no velocity and the position is above ground.
+    This also calculates the bode plot for every channel of the MIMO system as shown by
+    Figure~\ref{fig:linearizedopenloopdronemodel}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{ProjectUpdate4Figures/LinearizedOpenLoopDroneModel}
+        \caption{Bode Plot for the Linearized Open Loop Drone Plant}
+        \label{fig:linearizedopenloopdronemodel}
+    \end{figure}
+
+    The bode plot can again be generated for the identified state space model as shown
+    by Figure~\ref{fig:identified_state_space_model}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{ProjectUpdate4Figures/identified_state_space_model}
+        \caption{Bode Plot for Identified State Space Model}
+        \label{fig:identified_state_space_model}
+    \end{figure}
+
+    As can be observed, the bode plots from the linearized model (Figure~\ref{fig:linearizedopenloopdronemodel})
+    look very different from the bode plots generated by the identified model (Figure~\ref{fig:identified_state_space_model}).
+    The result is not surprising though, as the default operating point for the drone is upright, meaning
+    the linearization is not super accurate in describing the state space model.
+    When identifying the system, the drone deviates from the assumed operating point causing
+    the bode plots to look more natural.
+
+    \section{Simulating Noise on the Output}\label{sec:simulating_output_noise}
+
+    Now, we add measurment noise to the output of the system when taking the frd response.
+    To do this, white noise was added to each sensor output.
+    How the Simulink model was changed to accommodate for adding noise is given by Figure~\ref{fig:simulink_model_adjusted_for_noise}.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{C:/Users/Alek/Documents/MultivariableControlSystemsProject/ProjectUpdate4/ProjectUpdate4Figures/simulink_model_adjusted_for_noise}
+        \caption{Simulink Model with White Noise}
+        \label{fig:simulink_model_adjusted_for_noise}
+    \end{figure}
+
+    The same steps as before we repeated to find the frd of the system with output noise.
+    The spectral densities for each band of white noise is given by the table below.\\
+
+    \begin{table}[H]
+        \centering
+    \begin{tabular}{|c|c|}
+        \hline
+        Sensor & Spectral Density\\
+        \hline
+        $\theta$ & 0.1\\
+        \hline
+        $x_{pos}$ & 3\\
+        \hline
+        $z_{pos}$ & 5\\
+        \hline
+        speed & 2\\
+        \hline
+    \end{tabular}
+    \label{tab:noise_density_table}
+    \end{table}
+
+    Performing the same steps as below the frd produces the bode plot below.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\linewidth]{ProjectUpdate4Figures/noisy_model_bode_plots}
+        \caption{Noisy Model Bode Plots}
+        \label{fig:noisy_model_bode_plots}
+    \end{figure}
+
+    As observed, the bode plots are fairly similar except the phase margin is far worse than desired.
+    This again makes sense though because the system is not inherently stable and is incredibly non-linear.
+
+    Next, the chirp signal is run on the estimated state space to generate a new frd.
+    This will be used in the code to design a robust controller.
+
+    \section{Designing a Robust Controller using the frd}\label{sec:robust_design}
+
+    Next, a robust controller is designed to stabilize the system, closing the loop and allowing
+    it to be controller by a reference.
+    Using the frequency response data the problem can be formulated as an $H\infty$ problem with
+    uncertainty where the uncertainty is the frequency response error between the new frd
+    and the originally derived frd.
+    See the MATLAB script on GITHUB for the final controller design and code for
+    developing the robust controller.
+
+    \newpage{}
+    \section{Sources}\label{sec:sources}
+
+    \begin{enumerate}
+        \item https://www.mathworks.com/help/ident/ref/n4sid.html
+    \end{enumerate}
+
+    \newpage{}
+    \section{Github Repo}\label{sec:repo}
+
+    https://github.com/NightHydra/Multivariable-Control-Systems-Drone-Controller-Project
+
+
+
+
+
+
+    \end{document}
